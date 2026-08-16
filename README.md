@@ -73,14 +73,33 @@ Result: Never stop coding, minimal cost + 20-40% token savings via RTK
 
 ## ⚡ Quick Start
 
-**1. Install globally:**
+**1. Install the custom fork globally (production mode):**
 
 ```bash
-npm install -g 9router
+git clone -b custom https://github.com/namthanh0194/9router.git
+cd 9router/cli
+npm install
+npm run build
+npm install -g .
 9router
 ```
 
 🎉 Dashboard opens at `http://localhost:20128`
+
+> Do not use `npm install -g 9router`: that command installs the upstream npm package, not this fork.
+
+**Update an existing VPS installation:**
+
+```bash
+cd 9router
+git pull origin custom
+cd cli
+npm install
+npm run build
+npm install -g .
+```
+
+Restart the existing `9router`, PM2, or systemd process after installation. You do not need to uninstall the upstream package first: `npm install -g .` replaces the global package with this fork. Keep `~/.9router` because it contains the existing configuration and accounts.
 
 **2. Connect a FREE provider (no signup needed):**
 
