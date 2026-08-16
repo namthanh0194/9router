@@ -1,4 +1,4 @@
-export const ANTIGRAVITY_CONTEXT_TOKEN_LIMIT = 650_000;
+export const ANTIGRAVITY_CONTEXT_TOKEN_LIMIT = 750_000;
 
 const encoder = new TextEncoder();
 
