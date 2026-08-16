@@ -71,41 +71,104 @@ Result: Never stop coding, minimal cost + 20-40% token savings via RTK
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Quick Start (Custom Fork)
 
-**1. Install the custom fork globally (production mode):**
+> **Lưu ý:** Không chạy `npm install -g 9router` vì lệnh đó tải bản upstream từ registry npm, không chứa các bản vá riêng của fork này. Thư mục cấu hình và tài khoản lưu tại `~/.9router` được giữ nguyên.
 
+---
+
+### 1. Cài đặt lần đầu trên VPS (chạy 24/7 với PM2)
+
+**Yêu cầu môi trường:** Node.js `>= 20.9.0` và `npm` / `git`.
+
+**Bước 1: Dừng bản 9Router cũ (nếu có):**
 ```bash
-git clone -b custom https://github.com/namthanh0194/9router.git
-cd 9router/cli
-npm install
-npm run build
-npm install -g .
-9router
+pm2 stop 9router 2>/dev/null || sudo systemctl stop 9router 2>/dev/null || true
 ```
 
-🎉 Dashboard opens at `http://localhost:20128`
-
-> Do not use `npm install -g 9router`: that command installs the upstream npm package, not this fork.
-
-**Update an existing VPS installation:**
-
+**Bước 2: Cài PM2 (nếu máy chủ chưa có):**
 ```bash
-cd 9router
-git pull origin custom
+sudo npm install -g pm2
+```
+
+**Bước 3: Clone fork và build production:**
+```bash
+git clone -b custom https://github.com/namthanh0194/9router.git ~/9router-custom
+cd ~/9router-custom
+npm install
 cd cli
 npm install
 npm run build
-npm install -g .
+sudo npm install -g .
 ```
 
-Restart the existing `9router`, PM2, or systemd process after installation. You do not need to uninstall the upstream package first: `npm install -g .` replaces the global package with this fork. Keep `~/.9router` because it contains the existing configuration and accounts.
+**Bước 4: Chạy 24/7 với PM2:**
+```bash
+pm2 delete 9router 2>/dev/null || true
+pm2 start "$(command -v 9router)" --name "9router" -- --no-browser
+pm2 save
+pm2 startup
+```
 
-**2. Connect a FREE provider (no signup needed):**
+Chạy thêm lệnh `sudo ...` mà `pm2 startup` in ra (nếu có), sau đó chạy `pm2 save`.
+
+🎉 Dashboard: `http://<IP-VPS>:20128/dashboard`
+
+---
+
+### 2. Cập nhật khi bạn sửa code và push lên GitHub
+
+Mỗi khi bạn commit & push lên nhánh `custom`, chạy các lệnh sau trên VPS:
+
+```bash
+cd ~/9router-custom
+git pull --ff-only origin custom
+npm install
+cd cli
+npm install
+npm run build
+sudo npm install -g .
+pm2 restart 9router
+```
+
+**Kiểm tra sau cập nhật:**
+```bash
+# Xem commit hiện tại trên VPS
+git -C ~/9router-custom rev-parse --short HEAD
+
+# Xem phiên bản CLI
+9router --version
+
+# Xem trạng thái tiến trình
+pm2 status 9router
+
+# Xem log thời gian thực
+pm2 logs 9router --lines 50
+```
+
+**Rollback nhanh khi bản mới gặp lỗi:**
+
+> Cảnh báo: `git reset --hard` xóa mọi thay đổi chưa commit trong thư mục `~/9router-custom`. Không sửa code trực tiếp trên VPS.
+```bash
+cd ~/9router-custom
+git log --oneline -5
+GOOD_COMMIT=297bbf91  # Thay bằng commit hoạt động tốt
+git reset --hard "$GOOD_COMMIT"
+npm install
+cd cli
+npm install
+npm run build
+sudo npm install -g .
+pm2 restart 9router
+```
+
+---
+
+**3. Connect a FREE provider (no signup needed):**
 
 Dashboard → Providers → Connect **Kiro AI** (~50 credits/month free: Claude 4.5 + GLM-5 + MiniMax) or **OpenCode Free** (no auth) → Done!
 
-**3. Use in your CLI tool:**
+**4. Use in your CLI tool:**
 
 ```
 Claude Code/Codex/OpenClaw/Cursor/Cline Settings:
