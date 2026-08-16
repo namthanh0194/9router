@@ -7,6 +7,7 @@ import { resolveSessionId } from "../utils/sessionManager.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { cleanJSONSchemaForAntigravity } from "../translator/formats/gemini.js";
 import { DEFAULT_THINKING_AG_SIGNATURE } from "../config/defaultThinkingSignature.js";
+import { pruneAntigravityContext } from "../rtk/pruneAntigravity.js";
 
 // Sanitize function name: Gemini requires [a-zA-Z_][a-zA-Z0-9_.:\-]{0,63}
 function sanitizeFunctionName(name) {
@@ -277,7 +278,7 @@ export class AntigravityExecutor extends BaseExecutor {
 
     this._lastSessionId = transformedRequest.sessionId; // cached for buildHeaders (base.execute order)
 
-    return {
+    const transformedBody = {
       ...body,
       project: projectId,
       model: body.model || model,
@@ -286,6 +287,13 @@ export class AntigravityExecutor extends BaseExecutor {
       requestId: buildIdeRequestId({ body, request: transformedRequest, credentials, model, requestType: "agent" }),
       request: transformedRequest
     };
+
+    const pruneStats = pruneAntigravityContext(transformedBody);
+    if (pruneStats.pruned) {
+      console.warn(`[Antigravity] context pruned ${pruneStats.droppedContents} contents | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
+    }
+
+    return transformedBody;
   }
 
   async refreshCredentials(credentials, log, proxyOptions = null) {
