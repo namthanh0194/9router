@@ -73,6 +73,8 @@ Result: Never stop coding, minimal cost + 20-40% token savings via RTK
 
 ## ⚡ Quick Start (Custom Fork)
 
+> 📖 **Xem hướng dẫn chi tiết từng bước cho VPS (chế độ Hide to Tray, đường dẫn và rollback):** [`setup-update.md`](./setup-update.md)
+
 > **Lưu ý:** Không chạy `npm install -g 9router` vì lệnh đó tải bản upstream từ registry npm, không chứa các bản vá riêng của fork này. Thư mục cấu hình và tài khoản lưu tại `~/.9router` được giữ nguyên.
 
 ---
