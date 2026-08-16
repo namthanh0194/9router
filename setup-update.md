@@ -135,45 +135,41 @@ Chạy trực tiếp:
 
 ### A3. Quy trình Cập Nhật trên Ubuntu (Khi sửa code & push GitHub)
 
-Mỗi khi bạn commit & push code mới lên nhánh `custom`, chỉ cần chạy chuỗi lệnh sau trên Ubuntu VPS:
+Mỗi khi bạn commit & push code mới lên nhánh `custom`, thực hiện 3 bước sau:
 
+#### Bước 1: Dừng 9Router thủ công
+- Nếu dùng **systemd**: `sudo systemctl stop 9router`
+- Nếu dùng **PM2**: `pm2 stop 9router`
+- Nếu dùng **Hide to Tray**: Chuột phải icon khay hệ thống -> **Exit** (hoặc `pkill -f "9router"`)
+- Nếu chạy Terminal: `Ctrl + C`
+
+#### Bước 2: Chạy 1 lệnh cập nhật tự động
 ```bash
-# 1. Di chuyển vào thư mục dự án và kéo code mới nhất
-cd ~/9router-custom
-git pull --ff-only origin custom
-
-# 2. Cài dependency root (nếu có thư viện mới)
-npm install
-
-# 3. Build lại bản production và cài đè CLI toàn cục
-cd ~/9router-custom/cli
-npm install
-npm run build
-sudo npm install -g .
-
-# 4. Khởi động lại dịch vụ (chọn lệnh tương ứng với cách bạn đang chạy 24/7):
-# Nếu dùng systemd:
-sudo systemctl restart 9router
-
-# Nếu dùng PM2:
-# pm2 restart 9router
-
-# Nếu dùng Hide to Tray trên Desktop:
-# pkill -f "9router" && 9router (rồi chọn lại Hide to Tray)
+bash ~/9router-custom/update-vps.sh
 ```
+
+> **Ghi chú:** Script `update-vps.sh` tự động chạy: `git pull`, `npm install`, build Next.js standalone và `sudo npm install -g .`. Script sẽ kiểm tra và từ chối chạy nếu phát hiện tiến trình cũ chưa được bạn tắt.
+
+#### Bước 3: Khởi động lại 9Router thủ công
+- Nếu dùng **systemd**: `sudo systemctl start 9router`
+- Nếu dùng **PM2**: `pm2 start 9router`
+- Nếu dùng **Hide to Tray**: `9router` (chọn lại **`★ Hide to Tray`**)
+- Nếu chạy trực tiếp: `9router`
 
 **Kiểm tra sau cập nhật:**
 ```bash
 # Xem commit hiện tại
 git -C ~/9router-custom rev-parse --short HEAD
 
-# Xem log hoạt động thời gian thực
+# Xem phiên bản CLI
+9router --version
+
+# Xem log thời gian thực
 sudo journalctl -u 9router -f --lines 50
 # hoặc: pm2 logs 9router --lines 50
 ```
 
 ---
-
 ### A4. Rollback trên Ubuntu (Khi bản cập nhật bị lỗi)
 
 ```bash
