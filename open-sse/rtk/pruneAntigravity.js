@@ -1,8 +1,10 @@
-export const ANTIGRAVITY_CONTEXT_TOKEN_LIMIT = 850_000;
+export const ANTIGRAVITY_CONTEXT_TOKEN_LIMIT = 650_000;
+
+const encoder = new TextEncoder();
 
 function estimateTokens(body) {
   try {
-    return Math.ceil(JSON.stringify(body).length / 4);
+    return Math.ceil(encoder.encode(JSON.stringify(body)).length / 2);
   } catch {
     return 0;
   }
