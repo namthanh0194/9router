@@ -265,6 +265,114 @@ export function getComboModelsFromData(modelStr, combosData) {
   return null;
 }
 
+const MEANINGFUL_TOOL_ITEM_TYPES = new Set([
+  "function_call", "custom_tool_call", "computer_call",
+  "web_search_call", "file_search_call", "code_interpreter_call",
+]);
+
+function hasText(value) {
+  if (typeof value === "string") return value.trim().length > 0;
+  return Array.isArray(value) && value.some((item) => hasText(item?.text ?? item));
+}
+
+function hasMeaningfulStreamPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.response && hasMeaningfulStreamPayload(payload.response)) return true;
+
+  const type = payload.type || "";
+  if (type.endsWith(".delta") && hasText(payload.delta)) return true;
+
+  for (const choice of payload.choices || []) {
+    const message = choice?.delta || choice?.message || {};
+    if (hasText(choice?.text) || hasText(message.content) || hasText(message.reasoning_content) ||
+        hasText(message.reasoning) || hasText(message.thinking)) return true;
+    if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) return true;
+    if (message.function_call) return true;
+  }
+
+  const parts = payload.candidates?.[0]?.content?.parts || [];
+  if (parts.some((part) => hasText(part?.text) || part?.functionCall)) return true;
+
+  if (type === "content_block_delta") {
+    const delta = payload.delta || {};
+    if (hasText(delta.text) || hasText(delta.thinking) || hasText(delta.partial_json)) return true;
+  }
+  if (type === "content_block_start" && ["tool_use", "server_tool_use"].includes(payload.content_block?.type)) return true;
+
+  if (payload.item && MEANINGFUL_TOOL_ITEM_TYPES.has(payload.item.type)) return true;
+  return Array.isArray(payload.output) && payload.output.some((item) =>
+    MEANINGFUL_TOOL_ITEM_TYPES.has(item?.type) || hasText(item?.content)
+  );
+}
+
+function hasMeaningfulSseEvent(eventBlock) {
+  const data = eventBlock
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trimStart())
+    .join("\n");
+  if (!data || data === "[DONE]") return false;
+  try {
+    return hasMeaningfulStreamPayload(JSON.parse(data));
+  } catch {
+    return false;
+  }
+}
+
+function replayStreamResponse(response, bufferedChunks, reader) {
+  let replayIndex = 0;
+  const body = new ReadableStream({
+    async pull(controller) {
+      if (replayIndex < bufferedChunks.length) {
+        controller.enqueue(bufferedChunks[replayIndex++]);
+        return;
+      }
+      try {
+        const { done, value } = await reader.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    cancel: (reason) => reader.cancel(reason),
+  });
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+async function probeComboStream(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("text/event-stream")) return { empty: false, response };
+  if (!response.body) return { empty: true, response };
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const bufferedChunks = [];
+  let pending = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      pending += decoder.decode();
+      return pending.trim() && hasMeaningfulSseEvent(pending)
+        ? { empty: false, response: replayStreamResponse(response, bufferedChunks, reader) }
+        : { empty: true, response };
+    }
+
+    bufferedChunks.push(value);
+    pending += decoder.decode(value, { stream: true });
+    const events = pending.split(/\r?\n\r?\n/);
+    pending = events.pop() || "";
+    if (events.some(hasMeaningfulSseEvent)) {
+      return { empty: false, response: replayStreamResponse(response, bufferedChunks, reader) };
+    }
+  }
+}
+
 /**
  * Handle combo chat with fallback
  * @param {Object} options
@@ -275,9 +383,10 @@ export function getComboModelsFromData(modelStr, combosData) {
  * @param {string} [options.comboName] - Name of the combo (for round-robin tracking)
  * @param {string} [options.comboStrategy] - Strategy: "fallback" or "round-robin"
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
+ * @param {boolean} [options.validateOutput=false] - Fall back when a successful SSE stream has no meaningful output
  * @returns {Promise<Response>}
  */
-export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true }) {
+export async function handleComboChat({ body, models, handleSingleModel, log, comboName, comboStrategy, comboStickyLimit = 1, autoSwitch = true, validateOutput = false }) {
   // Apply rotation strategy if enabled
   let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
 
@@ -302,10 +411,20 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
     log.info("COMBO", `Trying model ${i + 1}/${rotatedModels.length}: ${modelStr}`);
 
     try {
-      const result = await handleSingleModel(body, modelStr);
+      let result = await handleSingleModel(body, modelStr);
       
       // Success (2xx) - return response
       if (result.ok) {
+        if (validateOutput) {
+          const probed = await probeComboStream(result);
+          if (probed.empty) {
+            lastError = "Empty model output";
+            if (!lastStatus) lastStatus = 502;
+            log.warn("COMBO", `Model ${modelStr} returned empty output, trying next`);
+            continue;
+          }
+          result = probed.response;
+        }
         log.info("COMBO", `Model ${modelStr} succeeded`);
         return result;
       }
