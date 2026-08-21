@@ -1,11 +1,12 @@
 export const OPENCODE_GO_DEEPSEEK_TRIGGER_TOKEN_LIMIT = 850_000;
 export const OPENCODE_GO_DEEPSEEK_TARGET_TOKEN_LIMIT = 800_000;
+export const OPENCODE_GO_DEEPSEEK_BYTES_PER_TOKEN = 1.5;
 
 const encoder = new TextEncoder();
 
 function estimateTokens(body) {
   try {
-    return Math.ceil(encoder.encode(JSON.stringify(body)).length / 2);
+    return Math.ceil(encoder.encode(JSON.stringify(body)).length / OPENCODE_GO_DEEPSEEK_BYTES_PER_TOKEN);
   } catch {
     return 0;
   }
@@ -71,6 +72,7 @@ export function pruneOpenCodeGoDeepSeekContext(
   const stats = {
     pruned: false,
     droppedMessages: 0,
+    floorReached: false,
     estimatedTokensBefore,
     estimatedTokensAfter: estimatedTokensBefore,
   };
@@ -92,5 +94,6 @@ export function pruneOpenCodeGoDeepSeekContext(
   }
 
   stats.pruned = stats.droppedMessages > 0;
+  stats.floorReached = stats.estimatedTokensAfter > targetTokens;
   return stats;
 }

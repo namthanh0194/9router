@@ -289,6 +289,9 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     if (pruneStats.pruned) {
       console.warn(`[OpenCode Go] context pruned ${pruneStats.droppedMessages} messages | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
     }
+    if (pruneStats.floorReached) {
+      console.warn(`[OpenCode Go] context prune floor reached | ~${pruneStats.estimatedTokensAfter} tokens | no safe old messages left`);
+    }
   }
   if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
 
@@ -477,3 +480,4 @@ export function isTokenExpiringSoon(expiresAt, bufferMs = 5 * 60 * 1000) {
   if (!expiresAt) return false;
   return new Date(expiresAt).getTime() - Date.now() < bufferMs;
 }
+
