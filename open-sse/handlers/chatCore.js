@@ -25,6 +25,7 @@ import { injectPonytail } from "../rtk/ponytail.js";
 import { compressMessages, formatRtkLog } from "../rtk/index.js";
 import { compressWithHeadroom, formatHeadroomLog, formatHeadroomSizeLog, isHeadroomPhantomSavings } from "../rtk/headroom.js";
 import { compressWithPxpipe } from "../rtk/pxpipe.js";
+import { pruneOpenCodeGoDeepSeekContext } from "../rtk/pruneOpenCodeGoDeepSeek.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { stripUnsupportedModalities } from "../translator/concerns/modality.js";
 import { prefetchRemoteImages } from "../translator/concerns/prefetch.js";
@@ -283,6 +284,12 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     try { onPxpipeEvent?.({ provider, model, ...pxpipeSummary }); } catch { /* stats must not break requests */ }
   }
 
+  if (provider === "opencode-go" && /^deepseek-v4-(flash|pro)$/i.test(model)) {
+    const pruneStats = pruneOpenCodeGoDeepSeekContext(translatedBody);
+    if (pruneStats.pruned) {
+      console.warn(`[OpenCode Go] context pruned ${pruneStats.droppedMessages} messages | ${pruneStats.bytesBefore} → ${pruneStats.bytesAfter} bytes`);
+    }
+  }
   if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
 
   // Pin cache breakpoints to the final body — every saver above can reshape
