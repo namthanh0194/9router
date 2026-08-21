@@ -3,6 +3,7 @@ import { getSettings, updateSettings } from "@/lib/localDb";
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { resetComboRotation } from "open-sse/services/combo.js";
 import bcrypt from "bcryptjs";
+import { validatePruneThresholds } from "@/lib/pruneValidation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -76,6 +77,22 @@ export async function PATCH(request) {
       }
     }
 
+    const currentSettings = await getSettings();
+    for (const [label, triggerKey, targetKey] of [
+      ["OpenCode Go DeepSeek", "opencodeGoDeepSeekPruneTriggerTokens", "opencodeGoDeepSeekPruneTargetTokens"],
+      ["Antigravity Gemini", "antigravityPruneTriggerTokens", "antigravityPruneTargetTokens"],
+    ]) {
+      if (!Object.prototype.hasOwnProperty.call(body, triggerKey) && !Object.prototype.hasOwnProperty.call(body, targetKey)) continue;
+      const validation = validatePruneThresholds({
+        trigger: body[triggerKey] ?? currentSettings[triggerKey],
+        target: body[targetKey] ?? currentSettings[targetKey],
+      });
+      if (!validation.valid) {
+        return NextResponse.json({ error: `${label}: ${validation.error}` }, { status: 400 });
+      }
+      body[triggerKey] = validation.trigger;
+      body[targetKey] = validation.target;
+    }
     const settings = await updateSettings(body);
 
     // Apply outbound proxy settings immediately (no restart required)

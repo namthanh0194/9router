@@ -1,4 +1,6 @@
 export const ANTIGRAVITY_CONTEXT_TOKEN_LIMIT = 850_000;
+export const ANTIGRAVITY_CONTEXT_TRIGGER_TOKEN_LIMIT = ANTIGRAVITY_CONTEXT_TOKEN_LIMIT;
+export const ANTIGRAVITY_CONTEXT_TARGET_TOKEN_LIMIT = ANTIGRAVITY_CONTEXT_TOKEN_LIMIT;
 
 const encoder = new TextEncoder();
 
@@ -45,7 +47,11 @@ function findNextUserBoundary(contents) {
   return -1;
 }
 
-export function pruneAntigravityContext(body, maxEstimatedTokens = ANTIGRAVITY_CONTEXT_TOKEN_LIMIT) {
+export function pruneAntigravityContext(
+  body,
+  triggerTokens = ANTIGRAVITY_CONTEXT_TRIGGER_TOKEN_LIMIT,
+  targetTokens = ANTIGRAVITY_CONTEXT_TARGET_TOKEN_LIMIT,
+) {
   const contents = body?.request?.contents;
   const estimatedTokensBefore = estimateTokens(body);
   const stats = {
@@ -55,9 +61,9 @@ export function pruneAntigravityContext(body, maxEstimatedTokens = ANTIGRAVITY_C
     estimatedTokensAfter: estimatedTokensBefore,
   };
 
-  if (!Array.isArray(contents) || estimatedTokensBefore <= maxEstimatedTokens) return stats;
+  if (!Array.isArray(contents) || estimatedTokensBefore <= triggerTokens) return stats;
 
-  while (stats.estimatedTokensAfter > maxEstimatedTokens && contents.length > 2) {
+  while (stats.estimatedTokensAfter > targetTokens && contents.length > 2) {
     const pairIndex = findOldestToolPair(contents);
     if (pairIndex >= 0) {
       contents.splice(pairIndex, 2);

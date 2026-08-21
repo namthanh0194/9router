@@ -57,6 +57,12 @@ export default function TokenSaverClient() {
   const [showPxpipeModal, setShowPxpipeModal] = useState(false);
   const [pxpipeActionLoading, setPxpipeActionLoading] = useState(false);
   const [pxpipeActionError, setPxpipeActionError] = useState("");
+  const [opencodeGoDeepSeekPruneTriggerTokens, setOpencodeGoDeepSeekPruneTriggerTokens] = useState(850000);
+  const [opencodeGoDeepSeekPruneTargetTokens, setOpencodeGoDeepSeekPruneTargetTokens] = useState(800000);
+  const [antigravityPruneTriggerTokens, setAntigravityPruneTriggerTokens] = useState(850000);
+  const [antigravityPruneTargetTokens, setAntigravityPruneTargetTokens] = useState(850000);
+  const [contextPruneSaving, setContextPruneSaving] = useState(false);
+  const [contextPruneMessage, setContextPruneMessage] = useState("");
   const [locale, setLocale] = useState("en");
 
   const { copied, copy } = useCopyToClipboard();
@@ -91,6 +97,36 @@ export default function TokenSaverClient() {
     }
   };
 
+  const handleContextPruneSave = async () => {
+    setContextPruneSaving(true);
+    setContextPruneMessage("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opencodeGoDeepSeekPruneTriggerTokens: Number(opencodeGoDeepSeekPruneTriggerTokens),
+          opencodeGoDeepSeekPruneTargetTokens: Number(opencodeGoDeepSeekPruneTargetTokens),
+          antigravityPruneTriggerTokens: Number(antigravityPruneTriggerTokens),
+          antigravityPruneTargetTokens: Number(antigravityPruneTargetTokens),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setContextPruneMessage(data.error || "Failed to save context pruning settings");
+        return;
+      }
+      setOpencodeGoDeepSeekPruneTriggerTokens(data.opencodeGoDeepSeekPruneTriggerTokens);
+      setOpencodeGoDeepSeekPruneTargetTokens(data.opencodeGoDeepSeekPruneTargetTokens);
+      setAntigravityPruneTriggerTokens(data.antigravityPruneTriggerTokens);
+      setAntigravityPruneTargetTokens(data.antigravityPruneTargetTokens);
+      setContextPruneMessage("Saved. New requests use these limits immediately.");
+    } catch {
+      setContextPruneMessage("Failed to save context pruning settings");
+    } finally {
+      setContextPruneSaving(false);
+    }
+  };
   const handleRtkEnabled = async (value) => {
     try {
       const res = await fetch("/api/settings", {
@@ -423,6 +459,10 @@ export default function TokenSaverClient() {
           setPonytailLevel(data.ponytailLevel || "full");
           setPxpipeEnabled(!!data.pxpipeEnabled);
           if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
+          if (typeof data.opencodeGoDeepSeekPruneTriggerTokens === "number") setOpencodeGoDeepSeekPruneTriggerTokens(data.opencodeGoDeepSeekPruneTriggerTokens);
+          if (typeof data.opencodeGoDeepSeekPruneTargetTokens === "number") setOpencodeGoDeepSeekPruneTargetTokens(data.opencodeGoDeepSeekPruneTargetTokens);
+          if (typeof data.antigravityPruneTriggerTokens === "number") setAntigravityPruneTriggerTokens(data.antigravityPruneTriggerTokens);
+          if (typeof data.antigravityPruneTargetTokens === "number") setAntigravityPruneTargetTokens(data.antigravityPruneTargetTokens);
           refreshHeadroomStatus();
           // PRD: run the PXPIPE health check automatically when the page opens
           refreshPxpipeStatus().then(runPxpipeHealth);
@@ -780,6 +820,47 @@ export default function TokenSaverClient() {
         )}
       </Card>
 
+      <Card id="context-pruning">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Context pruning</h2>
+          <p className="text-sm text-text-muted mt-1">
+            Drop old context before provider limits. Changes apply to new requests without restart.
+          </p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="rounded-lg border border-border p-4 space-y-3">
+            <div>
+              <p className="font-medium">OpenCode Go DeepSeek</p>
+              <p className="text-xs text-text-muted mt-1">Default: trigger 850000, target 800000.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Trigger tokens" type="number" min="100000" max="1000000" step="10000" value={opencodeGoDeepSeekPruneTriggerTokens} onChange={(event) => setOpencodeGoDeepSeekPruneTriggerTokens(event.target.value)} />
+              <Input label="Target tokens" type="number" min="100000" max="1000000" step="10000" value={opencodeGoDeepSeekPruneTargetTokens} onChange={(event) => setOpencodeGoDeepSeekPruneTargetTokens(event.target.value)} />
+            </div>
+          </div>
+          <div className="rounded-lg border border-border p-4 space-y-3">
+            <div>
+              <p className="font-medium">Antigravity Gemini</p>
+              <p className="text-xs text-text-muted mt-1">Default: trigger 850000, target 850000.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Trigger tokens" type="number" min="100000" max="1000000" step="10000" value={antigravityPruneTriggerTokens} onChange={(event) => setAntigravityPruneTriggerTokens(event.target.value)} />
+              <Input label="Target tokens" type="number" min="100000" max="1000000" step="10000" value={antigravityPruneTargetTokens} onChange={(event) => setAntigravityPruneTargetTokens(event.target.value)} />
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          <Button onClick={handleContextPruneSave} disabled={contextPruneSaving}>
+            {contextPruneSaving ? "Saving…" : "Save context limits"}
+          </Button>
+          {contextPruneMessage && (
+            <p className={`text-sm ${contextPruneMessage.startsWith("Saved") ? "text-success" : "text-error"}`}>
+              {contextPruneMessage}
+            </p>
+          )}
+        </div>
+        <p className="text-xs text-text-muted mt-3">Allowed: 100000–1000000 tokens, target must not exceed trigger.</p>
+      </Card>
       <Modal
         isOpen={showHeadroomInstallModal}
         title={headroomRunning ? "Headroom" : "Setup Headroom"}

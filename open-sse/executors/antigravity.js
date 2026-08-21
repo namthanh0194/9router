@@ -134,7 +134,7 @@ export class AntigravityExecutor extends BaseExecutor {
     };
   }
 
-  transformRequest(model, body, stream, credentials) {
+  transformRequest(model, body, stream, credentials, contextPruning = null) {
     const projectId = credentials?.projectId || this.generateProjectId();
 
     // OpenAI clients may include stream_options even for non-streaming calls.
@@ -288,7 +288,11 @@ export class AntigravityExecutor extends BaseExecutor {
       request: transformedRequest
     };
 
-    const pruneStats = pruneAntigravityContext(transformedBody);
+    const pruneStats = pruneAntigravityContext(
+      transformedBody,
+      contextPruning?.antigravity?.triggerTokens,
+      contextPruning?.antigravity?.targetTokens,
+    );
     if (pruneStats.pruned) {
       console.warn(`[Antigravity] context pruned ${pruneStats.droppedContents} contents | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
     }
