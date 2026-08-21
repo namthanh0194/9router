@@ -1,10 +1,11 @@
-export const OPENCODE_GO_DEEPSEEK_CONTEXT_BYTE_LIMIT = 1_200_000;
+export const OPENCODE_GO_DEEPSEEK_TRIGGER_TOKEN_LIMIT = 850_000;
+export const OPENCODE_GO_DEEPSEEK_TARGET_TOKEN_LIMIT = 800_000;
 
 const encoder = new TextEncoder();
 
-function serializedBytes(body) {
+function estimateTokens(body) {
   try {
-    return encoder.encode(JSON.stringify(body)).length;
+    return Math.ceil(encoder.encode(JSON.stringify(body)).length / 2);
   } catch {
     return 0;
   }
@@ -60,19 +61,23 @@ function findOldestConversationTurn(messages, latestUserIndex) {
   return null;
 }
 
-export function pruneOpenCodeGoDeepSeekContext(body, maxBytes = OPENCODE_GO_DEEPSEEK_CONTEXT_BYTE_LIMIT) {
+export function pruneOpenCodeGoDeepSeekContext(
+  body,
+  triggerTokens = OPENCODE_GO_DEEPSEEK_TRIGGER_TOKEN_LIMIT,
+  targetTokens = OPENCODE_GO_DEEPSEEK_TARGET_TOKEN_LIMIT,
+) {
   const messages = body?.messages;
-  const bytesBefore = serializedBytes(body);
+  const estimatedTokensBefore = estimateTokens(body);
   const stats = {
     pruned: false,
     droppedMessages: 0,
-    bytesBefore,
-    bytesAfter: bytesBefore,
+    estimatedTokensBefore,
+    estimatedTokensAfter: estimatedTokensBefore,
   };
 
-  if (!Array.isArray(messages) || bytesBefore <= maxBytes) return stats;
+  if (!Array.isArray(messages) || estimatedTokensBefore <= triggerTokens) return stats;
 
-  while (stats.bytesAfter > maxBytes) {
+  while (stats.estimatedTokensAfter > targetTokens) {
     const latestUserIndex = findLatestUserIndex(messages);
     if (latestUserIndex <= 0) break;
 
@@ -83,10 +88,9 @@ export function pruneOpenCodeGoDeepSeekContext(body, maxBytes = OPENCODE_GO_DEEP
     const count = range.endIndex - range.startIndex + 1;
     messages.splice(range.startIndex, count);
     stats.droppedMessages += count;
-    stats.bytesAfter = serializedBytes(body);
+    stats.estimatedTokensAfter = estimateTokens(body);
   }
 
   stats.pruned = stats.droppedMessages > 0;
   return stats;
 }
-

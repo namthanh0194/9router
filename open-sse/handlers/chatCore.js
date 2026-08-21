@@ -287,7 +287,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   if (provider === "opencode-go" && /^deepseek-v4-(flash|pro)$/i.test(model)) {
     const pruneStats = pruneOpenCodeGoDeepSeekContext(translatedBody);
     if (pruneStats.pruned) {
-      console.warn(`[OpenCode Go] context pruned ${pruneStats.droppedMessages} messages | ${pruneStats.bytesBefore} → ${pruneStats.bytesAfter} bytes`);
+      console.warn(`[OpenCode Go] context pruned ${pruneStats.droppedMessages} messages | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
     }
   }
   if (xf.length && log?.line) log.line(reqTag, "⚙", xf.join(" · "));
