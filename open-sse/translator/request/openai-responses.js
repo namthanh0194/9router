@@ -13,6 +13,17 @@ import { ROLE, OPENAI_BLOCK, RESPONSES_ITEM } from "../schema/index.js";
 const MAX_CALL_ID_LEN = 64;
 const clampCallId = (id) => (typeof id === "string" && id.length > MAX_CALL_ID_LEN ? id.substring(0, MAX_CALL_ID_LEN) : id);
 
+function normalizeToolArguments(value) {
+  if (typeof value !== "string") return JSON.stringify(value ?? {});
+  try {
+    JSON.parse(value);
+    return value;
+  } catch {
+    // ponytail: fallback to empty JSON object when client history has truncated/malformed arguments.
+    return "{}";
+  }
+}
+
 /**
  * Convert OpenAI Responses API request to OpenAI Chat Completions format
  */
@@ -119,7 +130,7 @@ export function openaiResponsesToOpenAIRequest(model, body, stream, credentials)
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: item.name,
-          arguments: typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput ?? {})
+          arguments: normalizeToolArguments(toolInput)
         }
       });
     }
