@@ -511,6 +511,24 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
 
   try {
     switch (connection.provider) {
+      case "selfhosted-tts": {
+        const configuredBaseUrl = connection.providerSpecificData?.baseUrl
+          || PROVIDERS["selfhosted-tts"]?.ttsConfig?.baseUrl
+          || "http://localhost:8880";
+        const baseUrl = String(configuredBaseUrl)
+          .replace(/\/+$/, "")
+          .replace(/\/v1\/audio\/speech$/, "")
+          .replace(/\/v1$/, "");
+
+        const res = await fetchWithConnectionProxy(`${baseUrl}/v1/models`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${connection.apiKey}` },
+        }, effectiveProxy);
+        if (res.status >= 200 && res.status < 300) return { valid: true, error: null };
+        if (res.status === 401 || res.status === 403) return { valid: false, error: "Invalid API key" };
+        return { valid: false, error: "VieNeu TTS endpoint unavailable" };
+      }
+
       case "cloudflare-ai": {
         const psd = connection.providerSpecificData || {};
         const accountId = psd.accountId;
