@@ -8,10 +8,21 @@ import { Buffer } from "node:buffer";
 
 const DEFAULT_BASE_URL = "http://localhost:8880";
 const DEFAULT_MODEL = "kokoro";
-const DEFAULT_VOICE = "af_heart";
+const DEFAULT_VOICE = "Minh Đức";
+const VOICE_ALIASES = {
+  "vi-VN-NamMinhNeural": "Minh Đức",
+};
+
+function resolveVoice(model, requestedVoice) {
+  if (requestedVoice) return VOICE_ALIASES[requestedVoice] || requestedVoice;
+  const value = String(model || "");
+  if (value === DEFAULT_MODEL) return DEFAULT_VOICE;
+  const voice = value.startsWith(`${DEFAULT_MODEL}/`) ? value.slice(DEFAULT_MODEL.length + 1) : value;
+  return VOICE_ALIASES[voice] || voice || DEFAULT_VOICE;
+}
 
 export default {
-  async synthesize(text, model, credentials, responseFormat = "mp3") {
+  async synthesize(text, model, credentials, _responseFormat = "mp3", { audioFormat, speed, voice: requestedVoice } = {}) {
     // Accept either providerSpecificData.baseUrl (how the custom embedding and
     // STT providers carry it) or a bare credentials.baseUrl (how the OpenAI TTS
     // adapter does), so a connection configured either way works.
@@ -24,27 +35,9 @@ export default {
       .replace(/\/v1\/audio\/speech$/, "")
       .replace(/\/v1$/, "");
 
-    // The provider prefix is already stripped by getModelInfo, so `model` here is
-    // "kokoro" or "kokoro/af_heart" — NOT "selfhosted-tts/...".
-    //
-    // A bare value is the MODEL, not the voice. The OpenAI adapter reads a bare
-    // value as a voice, which is right for a service whose model is fixed
-    // ("tts-1") and whose voice varies — but wrong here, where the model is the
-    // variable part. Treating it as a voice sent voice="kokoro" upstream and
-    // Kokoro answered 400, so `selfhosted-tts/kokoro` — the obvious way to
-    // address this provider — was the one form that did not work (verified
-    // against a live Kokoro through 9router, 2026-08-03).
-    let ttsModel = DEFAULT_MODEL;
-    let voice = DEFAULT_VOICE;
-    if (model) {
-      const parts = String(model).split("/").filter(Boolean);
-      if (parts.length >= 2) {
-        ttsModel = parts[0];
-        voice = parts.slice(1).join("/");
-      } else if (parts.length === 1) {
-        ttsModel = parts[0];
-      }
-    }
+    const responseFormat = ["mp3", "wav"].includes(audioFormat) ? audioFormat : "mp3";
+    const parsedSpeed = Number(speed);
+    const ttsSpeed = Number.isFinite(parsedSpeed) && parsedSpeed >= 0.25 && parsedSpeed <= 4 ? parsedSpeed : 1;
 
     const res = await fetch(`${base}/v1/audio/speech`, {
       method: "POST",
@@ -53,10 +46,11 @@ export default {
         ...(credentials?.apiKey ? { Authorization: `Bearer ${credentials.apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: ttsModel,
-        voice,
+        model: DEFAULT_MODEL,
         input: text,
+        voice: resolveVoice(model, requestedVoice),
         response_format: responseFormat,
+        speed: ttsSpeed,
       }),
     });
     if (!res.ok) {
