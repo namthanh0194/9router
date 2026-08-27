@@ -47,6 +47,8 @@ export function TtsExampleCard({ providerId }) {
   const [localEndpoint, setLocalEndpoint]   = useState("");
   const [tunnelEndpoint, setTunnelEndpoint] = useState("");
   const [responseFormat, setResponseFormat] = useState("mp3"); // mp3 | json
+  const [audioFormat, setAudioFormat]       = useState("mp3"); // upstream audio: mp3 | wav
+  const [speed, setSpeed]                   = useState(1);
   const [audioUrl, setAudioUrl]         = useState("");
   const [jsonResponse, setJsonResponse] = useState(null); // Store JSON response
   const [running, setRunning]           = useState(false);
@@ -187,6 +189,7 @@ export function TtsExampleCard({ providerId }) {
   // For ElevenLabs/config-driven: prefer manual voiceId (if any), else fall back to selectedVoice
   const activeVoiceId = config.hasVoiceIdInput ? (voiceId || selectedVoice) : selectedVoice;
   const modelFull = (() => {
+    if (config.sendVoiceInBody && config.hasModelSelector && selectedModel) return `${providerAlias}/${selectedModel}`;
     if (config.hasModelSelector && selectedModel && activeVoiceId) return `${providerAlias}/${selectedModel}/${activeVoiceId}`;
     if (config.hasModelSelector && selectedModel) return `${providerAlias}/${selectedModel}`;
     if (activeVoiceId) return `${providerAlias}/${activeVoiceId}`;
@@ -195,6 +198,9 @@ export function TtsExampleCard({ providerId }) {
 
   const ttsBody = (() => {
     const b = { model: modelFull, input };
+    if (config.sendVoiceInBody && activeVoiceId) b.voice = activeVoiceId;
+    if (config.hasAudioFormat) b.response_format = audioFormat;
+    if (config.hasSpeed) b.speed = speed;
     if (config.hasLanguageHint && languageHint) b.language = languageHint;
     if (config.hasStyleInput && style.trim()) b.style = style.trim();
     return b;
@@ -203,7 +209,7 @@ export function TtsExampleCard({ providerId }) {
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\
   -d '${JSON.stringify(ttsBody)}' \\
-  ${responseFormat === "json" ? "" : "--output speech.mp3"}`;
+  ${responseFormat === "json" ? "" : `--output speech.${config.hasAudioFormat ? audioFormat : "mp3"}`}`;
 
   const handleRun = async () => {
     if (!input.trim() || !modelFull) return;
@@ -375,7 +381,7 @@ export function TtsExampleCard({ providerId }) {
 
           {/* Voice ID input (ElevenLabs) — manual entry or auto-fill from chip */}
           {config.hasVoiceIdInput && (
-            <Row label="Voice ID">
+            <Row label={config.sendVoiceInBody ? "Voice" : "Voice ID"}>
               <div className="flex flex-col gap-1">
                 <div className="relative">
                   <input
@@ -384,7 +390,7 @@ export function TtsExampleCard({ providerId }) {
                       setVoiceId(e.target.value);
                       setSelectedVoice(e.target.value);
                     }}
-                    placeholder="e.g. CwhRBWXzGAHq8TQ4Fs17"
+                    placeholder={config.sendVoiceInBody ? "e.g. Minh Đức" : "e.g. CwhRBWXzGAHq8TQ4Fs17"}
                     className="w-full px-3 py-1.5 pr-7 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary font-mono"
                   />
                   {voiceId && (
@@ -439,6 +445,33 @@ export function TtsExampleCard({ providerId }) {
               )}
             </div>
           </Row>
+
+          {config.hasAudioFormat && (
+            <Row label="Audio Format">
+              <select
+                value={audioFormat}
+                onChange={(e) => setAudioFormat(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+              >
+                <option value="mp3">MP3</option>
+                <option value="wav">WAV</option>
+              </select>
+            </Row>
+          )}
+
+          {config.hasSpeed && (
+            <Row label="Speed">
+              <input
+                type="number"
+                min="0.25"
+                max="4"
+                step="0.25"
+                value={speed}
+                onChange={(e) => setSpeed(Number(e.target.value))}
+                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+              />
+            </Row>
+          )}
 
           {/* Style / voice instructions (Xiaomi MiMo) */}
           {config.hasStyleInput && (

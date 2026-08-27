@@ -98,6 +98,24 @@ export async function POST(request) {
 
     // Validate with each provider
     try {
+      if (provider === "selfhosted-tts") {
+        const configuredBaseUrl = providerSpecificData?.baseUrl
+          || AI_PROVIDERS[provider]?.ttsConfig?.baseUrl
+          || "http://localhost:8880";
+        const baseUrl = String(configuredBaseUrl)
+          .replace(/\/+$/, "")
+          .replace(/\/v1\/audio\/speech$/, "")
+          .replace(/\/v1$/, "");
+        const res = await fetch(`${baseUrl}/v1/models`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.status >= 200 && res.status < 300) return NextResponse.json({ valid: true, error: null });
+        if (res.status === 401 || res.status === 403) return NextResponse.json({ valid: false, error: "Invalid API key" });
+        return NextResponse.json({ valid: false, error: "VieNeu TTS endpoint unavailable" });
+      }
+
       if (isOpenAICompatibleProvider(provider)) {
         const node = await getProviderNodeById(provider);
         if (!node) {

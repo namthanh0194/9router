@@ -7,18 +7,15 @@
 import { Buffer } from "node:buffer";
 
 const DEFAULT_BASE_URL = "http://localhost:8880";
-const DEFAULT_MODEL = "kokoro";
+const DEFAULT_MODEL = "vieneu";
 const DEFAULT_VOICE = "Minh Đức";
-const VOICE_ALIASES = {
-  "vi-VN-NamMinhNeural": "Minh Đức",
-};
 
 function resolveVoice(model, requestedVoice) {
-  if (requestedVoice) return VOICE_ALIASES[requestedVoice] || requestedVoice;
-  const value = String(model || "");
+  if (requestedVoice?.trim()) return requestedVoice.trim();
+  const value = String(model || "").trim();
   if (value === DEFAULT_MODEL) return DEFAULT_VOICE;
   const voice = value.startsWith(`${DEFAULT_MODEL}/`) ? value.slice(DEFAULT_MODEL.length + 1) : value;
-  return VOICE_ALIASES[voice] || voice || DEFAULT_VOICE;
+  return voice || DEFAULT_VOICE;
 }
 
 export default {

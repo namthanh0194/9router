@@ -1,5 +1,4 @@
-// Self-hosted, OpenAI-compatible text-to-speech (Kokoro-FastAPI, openedai-speech,
-// vLLM-served TTS, ...) — the TTS counterpart of selfhosted-stt.
+// Self-hosted VieNeu text-to-speech — the TTS counterpart of selfhosted-stt.
 //
 // Every other self-hostable TTS provider here (coqui, tortoise) carries a FIXED
 // localhost baseUrl in its registry entry and `authType: "none"`, and the generic
@@ -15,29 +14,27 @@ export default {
   hasFree: true,
   alias: "selfhosted-tts",
   display: {
-    name: "Self-hosted TTS",
+    name: "VieNeu TTS",
     icon: "cloud",
     color: "#ffffffff",
     textIcon: "TT",
-    website: "https://github.com/remsky/Kokoro-FastAPI",
+    website: "https://github.com/pnnbao97/VieNeu-TTS",
   },
   category: "apikey",
   auth: {
     apiKey: {
-      text: "Set providerSpecificData.baseUrl to the server root, e.g. http://host:8080 — /v1/audio/speech is appended. The API key is not checked by local servers; any value works.",
+      text: "VieNeu API key sent as a Bearer token to /v1/models and /v1/audio/speech.",
     },
   },
-  // Voice is selected as "<model>/<voice>", the same convention the OpenAI TTS
-  // adapter uses, so existing clients need no special casing.
   models: [
-    { id: "kokoro", name: "Kokoro (self-hosted)", params: ["voice", "response_format", "speed"], kind: "tts" },
+    { id: "vieneu", name: "VieNeu TTS", params: ["voice", "response_format", "speed"], kind: "tts" },
   ],
   serviceKinds: ["tts"],
   ttsConfig: {
     // Overridden per connection by providerSpecificData.baseUrl; this default
     // only makes the provider usable on a same-host deployment.
     baseUrl: "http://localhost:8880",
-    defaultModel: "kokoro",
+    defaultModel: "vieneu",
     authType: "apikey",
     format: "openai-speech",
   },
