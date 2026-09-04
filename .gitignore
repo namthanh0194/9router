@@ -90,3 +90,6 @@ graphify-out/*
 .PR/
 .next-analyze/*
 /tmp/
+
+# Kiro local workspace state
+.kiro/
