@@ -364,10 +364,36 @@ export function createSSEStream(options = {}) {
               item.usage = filterUsageForFormat(buffered, sourceFormat);
             }
 
+            const translatedEventName =
+              sourceFormat === FORMATS.OPENAI_RESPONSES
+                ? (
+                    item?.event ||
+                    item?.data?.type ||
+                    item?.type ||
+                    null
+                  )
+                : null;
+
+            const translatedEventData =
+              item?.data || item;
+
+            const translatedResponsesTerminal =
+              sourceFormat === FORMATS.OPENAI_RESPONSES &&
+              isOpenAIResponsesTerminalEvent(
+                translatedEventName,
+                translatedEventData
+              );
+
             const output = formatSSE(item, sourceFormat);
             reqLogger?.appendConvertedChunk?.(output);
             controller.enqueue(sharedEncoder.encode(output));
             sseEmittedCount++;
+
+            // Codex CLI may close immediately after response.completed.
+            // Finalize usage BEFORE it gets a chance to cancel the stream.
+            if (translatedResponsesTerminal) {
+              finalizeStream();
+            }
           }
         }
       }

@@ -18,7 +18,30 @@ export function openaiToOpenAIResponsesResponse(chunk, state) {
   if (!chunk) {
     return flushEvents(state);
   }
-  
+
+  // Preserve OpenAI-style usage before checking choices.
+  // Important: some providers may emit a usage-only chunk with choices: [].
+  if (chunk.usage && typeof chunk.usage === "object") {
+    state.usage = {
+      ...(state.usage || {}),
+      ...chunk.usage
+    };
+
+    if (chunk.usage.prompt_tokens_details) {
+      state.usage.prompt_tokens_details = {
+        ...(state.usage?.prompt_tokens_details || {}),
+        ...chunk.usage.prompt_tokens_details
+      };
+    }
+
+    if (chunk.usage.completion_tokens_details) {
+      state.usage.completion_tokens_details = {
+        ...(state.usage?.completion_tokens_details || {}),
+        ...chunk.usage.completion_tokens_details
+      };
+    }
+  }
+
   if (!chunk.choices?.length) return [];
   
   const events = [];
@@ -365,9 +388,66 @@ function closeToolCall(state, emit, idx) {
   }
 }
 
+function toResponsesUsage(usage) {
+  if (!usage || typeof usage !== "object") return null;
+
+  const num = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const inputTokens = num(
+    usage.input_tokens ??
+    usage.prompt_tokens
+  );
+
+  const outputTokens = num(
+    usage.output_tokens ??
+    usage.completion_tokens
+  );
+
+  const cachedTokens = num(
+    usage.input_tokens_details?.cached_tokens ??
+    usage.prompt_tokens_details?.cached_tokens ??
+    usage.cached_tokens
+  );
+
+  const reasoningTokens = num(
+    usage.output_tokens_details?.reasoning_tokens ??
+    usage.completion_tokens_details?.reasoning_tokens ??
+    usage.reasoning_tokens
+  );
+
+  const totalTokens = num(usage.total_tokens) ||
+    (inputTokens + outputTokens);
+
+  if (
+    inputTokens <= 0 &&
+    outputTokens <= 0 &&
+    totalTokens <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    input_tokens: inputTokens,
+    input_tokens_details: {
+      cached_tokens: cachedTokens
+    },
+    output_tokens: outputTokens,
+    output_tokens_details: {
+      reasoning_tokens: reasoningTokens
+    },
+    total_tokens: totalTokens
+  };
+}
+
 function sendCompleted(state, emit) {
   if (!state.completedSent) {
     state.completedSent = true;
+
+    const usage = toResponsesUsage(state.usage);
+
     emit("response.completed", {
       type: "response.completed",
       response: {
@@ -376,7 +456,9 @@ function sendCompleted(state, emit) {
         created_at: state.created,
         status: "completed",
         background: false,
-        error: null
+        error: null,
+
+        ...(usage ? { usage } : {})
       }
     });
   }
