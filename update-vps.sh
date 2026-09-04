@@ -37,7 +37,20 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 echo "=== [2/6] Kéo code mới nhất từ nhánh custom ==="
-git pull --ff-only origin custom
+git fetch origin custom
+if git merge-base --is-ancestor HEAD origin/custom; then
+  git merge --ff-only origin/custom
+elif git merge-base --is-ancestor origin/custom HEAD; then
+  echo "Repo VPS đã có commit mới hơn origin/custom; không tự cập nhật để tránh ghi đè." >&2
+  exit 1
+else
+  echo "Lỗi: Lịch sử origin/custom đã bị force-push hoặc repo VPS có commit riêng." >&2
+  echo "Nếu VPS không có thay đổi cần giữ, đồng bộ lại bằng:" >&2
+  echo "  git fetch origin custom" >&2
+  echo "  git reset --hard origin/custom" >&2
+  echo "  bash ./update-vps.sh" >&2
+  exit 1
+fi
 
 echo "=== [3/6] Cài dependency root ==="
 npm install
