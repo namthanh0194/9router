@@ -78,6 +78,14 @@ export async function PATCH(request) {
     }
 
     const currentSettings = await getSettings();
+    for (const [label, enabledKey] of [
+      ["OpenCode Go DeepSeek", "opencodeGoDeepSeekPruneEnabled"],
+      ["Antigravity Gemini", "antigravityPruneEnabled"],
+    ]) {
+      if (Object.prototype.hasOwnProperty.call(body, enabledKey) && typeof body[enabledKey] !== "boolean") {
+        return NextResponse.json({ error: label + ": enabled must be a boolean" }, { status: 400 });
+      }
+    }
     for (const [label, triggerKey, targetKey] of [
       ["OpenCode Go DeepSeek", "opencodeGoDeepSeekPruneTriggerTokens", "opencodeGoDeepSeekPruneTargetTokens"],
       ["Antigravity Gemini", "antigravityPruneTriggerTokens", "antigravityPruneTargetTokens"],

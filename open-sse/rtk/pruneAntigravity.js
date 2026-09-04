@@ -51,6 +51,7 @@ export function pruneAntigravityContext(
   body,
   triggerTokens = ANTIGRAVITY_CONTEXT_TRIGGER_TOKEN_LIMIT,
   targetTokens = ANTIGRAVITY_CONTEXT_TARGET_TOKEN_LIMIT,
+  enabled = true,
 ) {
   const contents = body?.request?.contents;
   const estimatedTokensBefore = estimateTokens(body);
@@ -61,7 +62,7 @@ export function pruneAntigravityContext(
     estimatedTokensAfter: estimatedTokensBefore,
   };
 
-  if (!Array.isArray(contents) || estimatedTokensBefore <= triggerTokens) return stats;
+  if (!enabled || !Array.isArray(contents) || estimatedTokensBefore <= triggerTokens) return stats;
 
   while (stats.estimatedTokensAfter > targetTokens && contents.length > 2) {
     const pairIndex = findOldestToolPair(contents);

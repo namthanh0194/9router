@@ -66,6 +66,7 @@ export function pruneOpenCodeGoDeepSeekContext(
   body,
   triggerTokens = OPENCODE_GO_DEEPSEEK_TRIGGER_TOKEN_LIMIT,
   targetTokens = OPENCODE_GO_DEEPSEEK_TARGET_TOKEN_LIMIT,
+  enabled = true,
 ) {
   const messages = body?.messages;
   const estimatedTokensBefore = estimateTokens(body);
@@ -77,7 +78,7 @@ export function pruneOpenCodeGoDeepSeekContext(
     estimatedTokensAfter: estimatedTokensBefore,
   };
 
-  if (!Array.isArray(messages) || estimatedTokensBefore <= triggerTokens) return stats;
+  if (!enabled || !Array.isArray(messages) || estimatedTokensBefore <= triggerTokens) return stats;
 
   while (stats.estimatedTokensAfter > targetTokens) {
     const latestUserIndex = findLatestUserIndex(messages);

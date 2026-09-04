@@ -292,6 +292,7 @@ export class AntigravityExecutor extends BaseExecutor {
       transformedBody,
       contextPruning?.antigravity?.triggerTokens,
       contextPruning?.antigravity?.targetTokens,
+      contextPruning?.antigravity?.enabled,
     );
     if (pruneStats.pruned) {
       console.warn(`[Antigravity] context pruned ${pruneStats.droppedContents} contents | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);

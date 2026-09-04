@@ -59,7 +59,7 @@ export function stripContinuityFields(body) {
   return body;
 }
 
-export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, opencodeGoDeepSeekPruneTriggerTokens, opencodeGoDeepSeekPruneTargetTokens, antigravityPruneTriggerTokens, antigravityPruneTargetTokens, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking }) {
+export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, opencodeGoDeepSeekPruneEnabled, opencodeGoDeepSeekPruneTriggerTokens, opencodeGoDeepSeekPruneTargetTokens, antigravityPruneEnabled, antigravityPruneTriggerTokens, antigravityPruneTargetTokens, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking }) {
   const { provider, model } = modelInfo;
   const requestStartTime = Date.now();
   // Stable per-session color so all lines of one CLI conversation share a tag
@@ -297,7 +297,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   }
 
   if (provider === "opencode-go" && /^deepseek-v4-(flash|pro)$/i.test(model)) {
-    const pruneStats = pruneOpenCodeGoDeepSeekContext(translatedBody, opencodeGoDeepSeekPruneTriggerTokens, opencodeGoDeepSeekPruneTargetTokens);
+    const pruneStats = pruneOpenCodeGoDeepSeekContext(translatedBody, opencodeGoDeepSeekPruneTriggerTokens, opencodeGoDeepSeekPruneTargetTokens, opencodeGoDeepSeekPruneEnabled);
     if (pruneStats.pruned) {
       console.warn(`[OpenCode Go] context pruned ${pruneStats.droppedMessages} messages | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
     }
@@ -362,6 +362,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   const contextPruning = {
     antigravity: {
+      enabled: antigravityPruneEnabled,
       triggerTokens: antigravityPruneTriggerTokens,
       targetTokens: antigravityPruneTargetTokens,
     },
