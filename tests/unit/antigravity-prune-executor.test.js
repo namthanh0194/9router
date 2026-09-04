@@ -25,7 +25,7 @@ describe("AntigravityExecutor dynamic context pruning", () => {
     };
 
     const output = executor.transformRequest("gemini-3.7-flash", body, true, credentials, {
-      antigravity: { triggerTokens: 500, targetTokens: 350 },
+      antigravity: { triggerTokens: 500, targetTokens: 250 },
     });
 
     expect(output.request.contents).toHaveLength(2);
