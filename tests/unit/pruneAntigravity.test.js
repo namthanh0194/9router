@@ -4,6 +4,26 @@ import { pruneAntigravityContext } from "../../open-sse/rtk/pruneAntigravity.js"
 const large = (char, size = 600) => char.repeat(size);
 
 describe("pruneAntigravityContext — configurable token limits", () => {
+  it("ignores thought signatures when estimating context tokens", () => {
+    const body = {
+      request: {
+        contents: [
+          { role: "user", parts: [{ text: "read the file" }] },
+          { role: "model", parts: [{ thoughtSignature: large("s", 10_000), functionCall: { id: "call_1", name: "read", args: { path: "README.md" } } }] },
+          { role: "user", parts: [{ functionResponse: { id: "call_1", name: "read", response: { result: "small result" } } }] },
+          { role: "user", parts: [{ text: "latest request" }] },
+        ],
+      },
+    };
+    const before = structuredClone(body);
+
+    const stats = pruneAntigravityContext(body, 500, 300);
+
+    expect(stats.pruned).toBe(false);
+    expect(stats.estimatedTokensBefore).toBeLessThan(500);
+    expect(body).toEqual(before);
+  });
+
   it("does not prune below triggerTokens even when above targetTokens", () => {
     const body = {
       request: {

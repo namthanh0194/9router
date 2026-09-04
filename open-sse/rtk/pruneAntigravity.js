@@ -6,7 +6,8 @@ const encoder = new TextEncoder();
 
 function estimateTokens(body) {
   try {
-    return Math.ceil(encoder.encode(JSON.stringify(body)).length / 2);
+    const tokenizableBody = JSON.stringify(body, (key, value) => key === "thoughtSignature" ? undefined : value);
+    return Math.ceil(encoder.encode(tokenizableBody).length / 2);
   } catch {
     return 0;
   }
