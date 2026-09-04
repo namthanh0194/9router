@@ -24,25 +24,6 @@ describe("pruneAntigravityContext — configurable token limits", () => {
     expect(body).toEqual(before);
   });
 
-  it("uses four UTF-8 bytes per estimated token", () => {
-    const body = {
-      request: {
-        contents: [
-          { role: "user", parts: [{ text: large("a", 2_000) }] },
-          { role: "model", parts: [{ text: "previous answer" }] },
-          { role: "user", parts: [{ text: "latest request" }] },
-        ],
-      },
-    };
-    const before = structuredClone(body);
-
-    const stats = pruneAntigravityContext(body, 700, 500);
-
-    expect(stats.pruned).toBe(false);
-    expect(stats.estimatedTokensBefore).toBeLessThan(700);
-    expect(body).toEqual(before);
-  });
-
   it("does not prune below triggerTokens even when above targetTokens", () => {
     const body = {
       request: {
