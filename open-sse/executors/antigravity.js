@@ -297,6 +297,9 @@ export class AntigravityExecutor extends BaseExecutor {
     if (pruneStats.pruned) {
       console.warn(`[Antigravity] context pruned ${pruneStats.droppedContents} contents | ~${pruneStats.estimatedTokensBefore} → ~${pruneStats.estimatedTokensAfter} tokens`);
     }
+    if (pruneStats.floorReached) {
+      console.warn(`[Antigravity] context prune floor reached | ~${pruneStats.estimatedTokensAfter} tokens | no safe old messages left`);
+    }
 
     return transformedBody;
   }
