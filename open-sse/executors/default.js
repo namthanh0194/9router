@@ -7,7 +7,7 @@ import { buildClineHeaders } from "../shared/clineAuth.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
-import { resolveSessionId } from "../utils/sessionManager.js";
+import { deriveSessionId } from "../utils/sessionManager.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -62,6 +62,13 @@ const REFRESH_GRANTS = Object.fromEntries(
       }];
     })
 );
+
+function deriveOpenCodeSession(raw, credentials) {
+  const incoming = raw["x-opencode-session"] || raw["x-codex-session-id"] || raw["x-session-id"] || raw["session-id"];
+  if (typeof incoming === "string" && incoming.trim()) return incoming.trim();
+
+  return deriveSessionId(credentials?.connectionId).slice(0, 36);
+}
 
 export class DefaultExecutor extends BaseExecutor {
   constructor(provider) {
@@ -160,13 +167,7 @@ export class DefaultExecutor extends BaseExecutor {
     }
 
     if (this.provider === "opencode-go") {
-      const raw = credentials?.rawHeaders || {};
-      const incoming = raw["x-opencode-session"] || raw["X-OpenCode-Session"] || raw["x-session-id"] || raw["X-Session-ID"];
-      headers["x-opencode-session"] = incoming || resolveSessionId({
-        headers: raw,
-        connectionId: credentials?.connectionId,
-        scope: "opencode-go",
-      });
+      headers["x-opencode-session"] = deriveOpenCodeSession(credentials?.rawHeaders || {}, credentials);
     }
 
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
