@@ -7,6 +7,7 @@ import { buildClineHeaders } from "../shared/clineAuth.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
+import { resolveSessionId } from "../utils/sessionManager.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -156,6 +157,16 @@ export class DefaultExecutor extends BaseExecutor {
 
     if (this.provider === "claude" && model) {
       headers["Anthropic-Beta"] = selectAnthropicBeta(model);
+    }
+
+    if (this.provider === "opencode-go") {
+      const raw = credentials?.rawHeaders || {};
+      const incoming = raw["x-opencode-session"] || raw["X-OpenCode-Session"] || raw["x-session-id"] || raw["X-Session-ID"];
+      headers["x-opencode-session"] = incoming || resolveSessionId({
+        headers: raw,
+        connectionId: credentials?.connectionId,
+        scope: "opencode-go",
+      });
     }
 
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
