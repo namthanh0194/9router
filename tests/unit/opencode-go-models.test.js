@@ -9,6 +9,9 @@ const CHAT_ONLY = ["glm-5.3", "glm-5.2", "glm-5.1", "kimi-k2.7-code", "kimi-k2.6
 // Models that also expose the Anthropic /messages endpoint
 const CLAUDE_CAPABLE = ["minimax-m3", "minimax-m2.7", "minimax-m2.5",
   "qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-plus"];
+// Models that also expose the OpenAI /responses endpoint
+const RESPONSES_CAPABLE = ["deepseek-v4-pro", "deepseek-v4-flash"];
+
 // Mirror of chatCore's per-model transport guard: use the sourceFormat-matched
 // transport only when the model declares support for that sourceFormat.
 function pickTransport(provider, sourceFormat, alias, model) {
@@ -41,9 +44,9 @@ describe("OpenCode Go per-model supportedFormats", () => {
     }
   });
 
-  it("declares [openai, claude] for DeepSeek models (responses routed through chat completions)", () => {
-    for (const m of ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"]) {
-      expect(getModelSupportedFormats("opencode-go", m)).toEqual(["openai", "claude"]);
+  it("declares [openai, claude, openai-responses] for DeepSeek models", () => {
+    for (const m of RESPONSES_CAPABLE) {
+      expect(getModelSupportedFormats("opencode-go", m)).toEqual(["openai", "claude", "openai-responses"]);
     }
   });
 
@@ -86,9 +89,9 @@ describe("OpenCode Go per-model transport guard (chatCore logic)", () => {
     }
   });
 
-  it("does NOT route DeepSeek + responses-format client to /responses", () => {
-    for (const m of ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v4-flash-vision-exp"]) {
-      expect(pickTransport("opencode-go", "openai-responses", "opencode-go", m)).toBeNull();
+  it("routes DeepSeek + responses-format client to /responses", () => {
+    for (const m of RESPONSES_CAPABLE) {
+      expect(pickTransport("opencode-go", "openai-responses", "opencode-go", m)?.baseUrl).toBe("https://opencode.ai/zen/go/v1/responses");
     }
   });
 
