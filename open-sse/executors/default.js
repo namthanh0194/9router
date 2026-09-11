@@ -7,7 +7,6 @@ import { buildClineHeaders } from "../shared/clineAuth.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
-import { deriveSessionId } from "../utils/sessionManager.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -62,13 +61,6 @@ const REFRESH_GRANTS = Object.fromEntries(
       }];
     })
 );
-
-function deriveOpenCodeSession(raw, credentials) {
-  const incoming = raw["x-opencode-session"] || raw["x-codex-session-id"] || raw["x-session-id"] || raw["session-id"];
-  if (typeof incoming === "string" && incoming.trim()) return incoming.trim();
-
-  return deriveSessionId(credentials?.connectionId).slice(0, 36);
-}
 
 export class DefaultExecutor extends BaseExecutor {
   constructor(provider) {
@@ -162,12 +154,19 @@ export class DefaultExecutor extends BaseExecutor {
     for (const hook of desc.hooks || []) HEADER_HOOKS[hook]?.(headers, credentials);
     applyAuth(headers, desc, credentials);
 
-    if (this.provider === "claude" && model) {
+    // anthropic-compatible-* nodes serving a real Claude model sit in front of
+    // Anthropic itself (a rotating multi-account proxy, a corporate gateway),
+    // so the request needs the same beta flags the `claude` provider sends:
+    // without `context-management-2025-06-27` upstream rejects the
+    // `context_management` block Claude Code puts in every request with
+    // "context_management: Extra inputs are not permitted" (HTTP 400), and the
+    // combo silently falls through to the next model. The model id gates this:
+    // a node fronting Kimi or GLM answers on its own ids and never matches, so
+    // gateways that would choke on unknown beta flags are left untouched.
+    const isClaudeModel = typeof model === "string" && /^claude-/.test(model);
+    if (model && (this.provider === "claude"
+      || (this.provider?.startsWith?.("anthropic-compatible-") && isClaudeModel))) {
       headers["Anthropic-Beta"] = selectAnthropicBeta(model);
-    }
-
-    if (this.provider === "opencode-go") {
-      headers["x-opencode-session"] = deriveOpenCodeSession(credentials?.rawHeaders || {}, credentials);
     }
 
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
